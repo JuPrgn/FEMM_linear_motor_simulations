@@ -1,0 +1,29 @@
+Magnet:
+  OD: 12
+  Length: 20
+  Pitch: 20
+  Material: N42
+  Spacer_material: 1117 Steel
+  Number: 8
+  Tube_diameter: 13
+  Tube_material: Air
+
+Coil: 
+  ID: 14
+  OD: 24.5
+  Length: 6
+  Pitch: 6.8
+  Material: 0.315mm
+  Spacer_material: Air
+  Wire_diameter: 0.315
+  Nb_turn: 249
+  Number: 6
+  Current_peak: 3
+  Vertical_offset: 0
+  Spool_ID: 13.5
+  Spool_OD: 19
+  Spool_flange_width: 0.4
+  Spool_material: Air
+  Tube_ID: 0
+  Tube_OD: 0
+  Tube_material: Air
