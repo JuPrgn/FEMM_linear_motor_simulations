@@ -200,7 +200,7 @@ class CreateModel:
         """Create coils of the tubular linear motor from specified parameters."""
         coil_labels = [("A", 1), ("B", 2), ("C", 3)]
         total_height = (self.coil.number - 1) * self.coil.pitch
-        y_start = -total_height / 2
+        y_start = -total_height / 2  + self.coil.vertical_offset
         for i in range(self.coil.number):
             coil_label, group = coil_labels[(self.coil.number - 1 - i) % 3]
             y_center = y_start + i * self.coil.pitch
