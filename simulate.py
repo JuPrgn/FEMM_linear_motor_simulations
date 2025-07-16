@@ -64,7 +64,7 @@ def plot_results(df_result: pd.DataFrame):
     ax2.legend(loc="upper right")
 
     plt.tight_layout()
-    plt.savefig("Results_Force_Currents.png")
+    plt.savefig(out_dir / "Results_Force_Currents.png")
     plt.show()
 
 
