@@ -11,7 +11,6 @@ class Coil:
     pitch: Optional[float] = None
     material: Optional[str] = None
     spacer_material: Optional[str] = None
-    wire_diameter: Optional[float] = None
     nb_turn: Optional[int] = None
     number: Optional[int] = None
     current_peak: Optional[float] = None
@@ -25,4 +24,4 @@ class Coil:
     tube_material: Optional[str] = None
 
     def __repr__(self):
-        return f"<Coil ID={self.id}, OD={self.od}, Wire_diameter={self.wire_diameter}>"
+        return f"<Coil ID={self.id}, OD={self.od}, material={self.material}>"
