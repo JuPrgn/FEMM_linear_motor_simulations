@@ -163,6 +163,39 @@ class CreateModel:
             )
             femm.mi_clearselected()
 
+            # If there should be a spacer between magnets, add it
+            if self.magnet.length < self.magnet.pitch and i < self.magnet.number - 1:
+                spacer_length = self.magnet.pitch - self.magnet.length
+                spacer_center_y = y_center + self.magnet.pitch / 2
+                half_spacer = spacer_length / 2
+                spacer_top_left = (0, spacer_center_y + half_spacer)
+                spacer_bottom_left = (0, spacer_center_y - half_spacer)
+                spacer_bottom_right = (r, spacer_center_y - half_spacer)
+                spacer_top_right = (r, spacer_center_y + half_spacer)
+                femm.mi_addnode(*spacer_top_left)
+                femm.mi_addnode(*spacer_bottom_left)
+                femm.mi_addnode(*spacer_bottom_right)
+                femm.mi_addnode(*spacer_top_right)
+                femm.mi_addsegment(*spacer_top_left, *spacer_bottom_left)
+                femm.mi_addsegment(*spacer_bottom_left, *spacer_bottom_right)
+                femm.mi_addsegment(*spacer_bottom_right, *spacer_top_right)
+                femm.mi_addsegment(*spacer_top_right, *spacer_top_left)
+                spacer_label_x = r / 2
+                spacer_label_y = spacer_center_y
+                femm.mi_addblocklabel(spacer_label_x, spacer_label_y)
+                femm.mi_selectlabel(spacer_label_x, spacer_label_y)
+                femm.mi_setblockprop(
+                    self.magnet.spacer_material,
+                    1,
+                    0,
+                    "",
+                    0,
+                    0,
+                    0,
+                )
+                femm.mi_clearselected()
+
+
     def create_coils(self):
         """Create coils of the tubular linear motor from specified parameters."""
         coil_labels = [("A", 1), ("B", 2), ("C", 3)]
