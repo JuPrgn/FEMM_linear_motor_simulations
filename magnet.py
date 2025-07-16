@@ -11,7 +11,7 @@ class Magnet:
     material: Optional[str] = None
     spacer_material: Optional[str] = None
     number: Optional[int] = None
-    tube_diameter: Optional[float] = None
+    tube_od: Optional[float] = None
     tube_material: Optional[str] = None
 
     def __repr__(self):

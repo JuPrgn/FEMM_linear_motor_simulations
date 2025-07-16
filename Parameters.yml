@@ -5,7 +5,7 @@ Magnet:
   Material: N42
   Spacer_material: 1117 Steel
   Number: 8
-  Tube_diameter: 13
+  Tube_OD: 13
   Tube_material: Air
 
 Coil: 

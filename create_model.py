@@ -195,6 +195,37 @@ class CreateModel:
                 )
                 femm.mi_clearselected()
 
+        # If there should be a tube around the magnets, add it
+        if self.magnet.tube_od > self.magnet.od:
+            tube_half_height = self.magnet.number * self.magnet.pitch / 2
+            tube_r = self.magnet.tube_od / 2
+            tube_top_left = (r, tube_half_height)
+            tube_bottom_left = (r, -tube_half_height)
+            tube_bottom_right = (tube_r, -tube_half_height)
+            tube_top_right = (tube_r, tube_half_height)
+            femm.mi_addnode(*tube_top_left)
+            femm.mi_addnode(*tube_bottom_left)
+            femm.mi_addnode(*tube_bottom_right)
+            femm.mi_addnode(*tube_top_right)
+            femm.mi_addsegment(*tube_top_left, *tube_bottom_left)
+            femm.mi_addsegment(*tube_bottom_left, *tube_bottom_right)
+            femm.mi_addsegment(*tube_bottom_right, *tube_top_right)
+            femm.mi_addsegment(*tube_top_right, *tube_top_left)
+            tube_label_x = tube_r - (tube_r - r) / 2
+            tube_label_y = 0
+            femm.mi_addblocklabel(tube_label_x, tube_label_y)
+            femm.mi_selectlabel(tube_label_x, tube_label_y)
+            femm.mi_setblockprop(
+                self.magnet.tube_material,
+                1,
+                0,
+                "",
+                0,
+                0,
+                0,
+            )
+            femm.mi_clearselected()
+
 
     def create_coils(self):
         """Create coils of the tubular linear motor from specified parameters."""
