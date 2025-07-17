@@ -79,11 +79,9 @@ if __name__ == "__main__":
     END_POS = 20
     STEP_SIZE = 1
 
-    # Model parameters automatically updated from Yaml if "generate" or hard coded for "load"
+    # Model parameters automatically updated from Yaml if "generate" or hardcoded here for "load"
     PEAK_CURRENT = 3.0  # in A
-    POLE_LENGTH = (
-        40.0  # Distance between two identical magnetic poles (N to N or S to S)
-    )
+    POLE_LENGTH = 40.0  # Distance between two identical magnetic poles (N to N or S to S)
     COIL_PITCH = 6.8  # in mm
 
     if MODE == "generate":

@@ -282,6 +282,103 @@ class CreateModel:
             )
             femm.mi_clearselected()
 
+            # If there should be a spool around coils, add it
+            if (
+                self.coil.spool_flange_width > 0
+                and self.coil.spool_id <= self.coil.id
+                and self.coil.spool_od >= self.coil.od
+            ):
+                spool_flange_length = self.coil.spool_flange_width
+                half_spool_length = half_length + spool_flange_length
+                spool_center_y = y_center
+                spool_start_x = self.coil.spool_id / 2
+                spool_end_x = self.coil.spool_od / 2
+                spool_top_left = (spool_start_x, spool_center_y + half_spool_length)
+                spool_bottom_left = (spool_start_x, spool_center_y - half_spool_length)
+                spool_bottom_right = (spool_end_x, spool_center_y - half_spool_length)
+                spool_bottom_right_upper_flange = (spool_end_x, spool_center_y - half_spool_length + spool_flange_length)
+                spool_top_right = (spool_end_x, spool_center_y + half_spool_length)
+                spool_top_right_inner_flange = (spool_end_x, spool_center_y + half_spool_length - spool_flange_length)
+                femm.mi_addnode(*spool_top_left)
+                femm.mi_addnode(*spool_bottom_left)
+                femm.mi_addnode(*spool_bottom_right)
+                femm.mi_addnode(*spool_bottom_right_upper_flange)
+                femm.mi_addnode(*spool_top_right)
+                femm.mi_addnode(*spool_top_right_inner_flange)
+                spool_segments = [
+                    (spool_top_left, spool_bottom_left),
+                    (spool_bottom_left, spool_bottom_right),
+                    (spool_bottom_right, spool_bottom_right_upper_flange),
+                    (spool_bottom_right_upper_flange, bottom_right),
+                    (top_right, spool_top_right_inner_flange),
+                    (spool_top_right_inner_flange, spool_top_right),
+                    (spool_top_right, spool_top_left),
+                ]
+                for p1, p2 in spool_segments:
+                    femm.mi_addsegment(*p1, *p2)
+                    x_seg = (p1[0] + p2[0]) / 2
+                    y_seg = (p1[1] + p2[1]) / 2
+                    femm.mi_selectsegment(x_seg, y_seg)
+                    femm.mi_setsegmentprop("<None>", 0, 1, 0, 4)
+                    femm.mi_clearselected()
+                spool_label_x = spool_start_x + (spool_end_x - spool_start_x) / 2
+                spool_label_y = spool_center_y + half_spool_length - spool_flange_length / 2
+                femm.mi_addblocklabel(spool_label_x, spool_label_y)
+                femm.mi_selectlabel(spool_label_x, spool_label_y)
+                femm.mi_setblockprop(
+                    self.coil.spool_material,
+                    1,
+                    0,
+                    "",
+                    0,
+                    4,
+                    0,
+                )
+                femm.mi_clearselected()
+
+            # If there should be a spacer between coils, add it
+            if (self.coil.length + 2 * self.coil.spool_flange_width) < self.coil.pitch and i < self.coil.number - 1:
+                spacer_length = self.coil.pitch - (self.coil.length + 2 * self.coil.spool_flange_width)
+                spacer_center_y = y_center + self.coil.pitch / 2
+                half_spacer = spacer_length / 2
+                spacer_start_x = min(x_start, self.coil.spool_id / 2)
+                spacer_end_x = max(r, self.coil.spool_od / 2)
+                spacer_top_left = (spacer_start_x, spacer_center_y + half_spacer)
+                spacer_bottom_left = (spacer_start_x, spacer_center_y - half_spacer)
+                spacer_bottom_right = (spacer_end_x, spacer_center_y - half_spacer)
+                spacer_top_right = (spacer_end_x, spacer_center_y + half_spacer)
+                femm.mi_addnode(*spacer_top_left)
+                femm.mi_addnode(*spacer_bottom_left)
+                femm.mi_addnode(*spacer_bottom_right)
+                femm.mi_addnode(*spacer_top_right)
+                spacer_segments = [
+                    (spacer_top_left, spacer_bottom_left),
+                    (spacer_bottom_left, spacer_bottom_right),
+                    (spacer_bottom_right, spacer_top_right),
+                    (spacer_top_right, spacer_top_left),
+                ]
+                for p1, p2 in spacer_segments:
+                    femm.mi_addsegment(*p1, *p2)
+                    x_seg = (p1[0] + p2[0]) / 2
+                    y_seg = (p1[1] + p2[1]) / 2
+                    femm.mi_selectsegment(x_seg, y_seg)
+                    femm.mi_setsegmentprop("<None>", 0, 1, 0, 4)
+                    femm.mi_clearselected()
+                spacer_label_x = spacer_start_x + (spacer_end_x - spacer_start_x) / 2
+                spacer_label_y = spacer_center_y
+                femm.mi_addblocklabel(spacer_label_x, spacer_label_y)
+                femm.mi_selectlabel(spacer_label_x, spacer_label_y)
+                femm.mi_setblockprop(
+                    self.coil.spacer_material,
+                    1,
+                    0,
+                    "",
+                    0,
+                    4,
+                    0,
+                )
+                femm.mi_clearselected()
+
     def create_auto_boundary(self):
         """Automatically create an open boundary region around the model."""
         r_max = max(self.coil.od / 2, self.magnet.od / 2)
