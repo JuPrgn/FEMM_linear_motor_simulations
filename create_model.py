@@ -2,8 +2,11 @@ from pathlib import Path
 import yaml
 import femm
 
-from magnet import Magnet
-from coil import Coil
+
+from motor_dataclasses import Magnet, Coil
+from model_builders.magnets import create_magnets
+from model_builders.coils import create_coils
+from model_builders.boundaries import create_auto_boundary
 
 
 class CreateModel:
@@ -11,39 +14,39 @@ class CreateModel:
 
     def __init__(self, model_path: Path):
         self.model_path = model_path
-        self.params = {}
-        self.magnet = None
-        self.coil = None
+        self.params_dict = {}
+        self.magnet_params = None
+        self.coil_params = None
         self.exp_factor = 0.5
         self.moving_mass = 0
-        self.out_path = Path.cwd() / "SimGenerated.fem"
+        self.output_path = Path.cwd() / "SimGenerated.fem"
 
     def build(self):
         """Build the model from YAML file specified parameters"""
         self.load_model_parameters()
         self.validate_params()
         femm.openfemm(1)
-        dict_type_analysis = {
+        analysis_types = {
             "Magnetic": 0,
             "Electrostatic": 1,
             "Heat Flow": 2,
             "Current Flow": 3,
         }
-        femm.newdocument(dict_type_analysis["Magnetic"])
+        femm.newdocument(analysis_types["Magnetic"])
         femm.mi_probdef(0, "millimeters", "axi")
         self.import_materials_property()
         self.create_circuits()
         self.create_magnets()
         self.create_coils()
         self.create_auto_boundary()
-        femm.mi_saveas(str(self.out_path))
+        femm.mi_saveas(str(self.output_path))
 
     def load_model_parameters(self):
         """Import model parameters from YAML file."""
         try:
             with open(self.model_path, "r", encoding="utf-8") as f:
-                self.params = yaml.safe_load(f)
-                if not isinstance(self.params, dict):
+                self.params_dict = yaml.safe_load(f)
+                if not isinstance(self.params_dict, dict):
                     raise ValueError("YAML root must be a dictionary")
         except FileNotFoundError:
             raise FileNotFoundError(f"Model file not found: {self.model_path}")
@@ -54,17 +57,17 @@ class CreateModel:
         self._load_objects()
 
     def _load_objects(self):
-        magnet_data = self.params.get("Magnet", {})
-        coil_data = self.params.get("Coil", {})
-        self.magnet = Magnet(**{k.lower(): v for k, v in magnet_data.items()})
-        self.coil = Coil(**{k.lower(): v for k, v in coil_data.items()})
+        magnet_data = self.params_dict.get("Magnet", {})
+        coil_data = self.params_dict.get("Coil", {})
+        self.magnet_params = Magnet(**{k.lower(): v for k, v in magnet_data.items()})
+        self.coil_params = Coil(**{k.lower(): v for k, v in coil_data.items()})
 
     def validate_params(self):
         """Checks that the yaml file contains necessary keys."""
         # Check presence of main sections
-        if "Coil" not in self.params:
+        if "Coil" not in self.params_dict:
             raise ValueError("Missing required section: 'Coil'")
-        if "Magnet" not in self.params:
+        if "Magnet" not in self.params_dict:
             raise ValueError("Missing required section: 'Magnet'")
 
         # List of required fields for Magnet and Coil
@@ -73,19 +76,19 @@ class CreateModel:
 
         # Check Magnet fields
         for field in required_magnet:
-            value = getattr(self.magnet, field, None)
+            value = getattr(self.magnet_params, field, None)
             if value is None:
                 raise ValueError(f"Missing or null parameter in Magnet: '{field}'")
 
         # Check Coil fields
         for field in required_coil:
-            value = getattr(self.coil, field, None)
+            value = getattr(self.coil_params, field, None)
             if value is None:
                 raise ValueError(f"Missing or null parameter in Coil: '{field}'")
 
     def get_param(self, *keys, default=None):
         """Access a nested parameter using a sequence of keys."""
-        current = self.params
+        current = self.params_dict
         for key in keys:
             if not isinstance(current, dict):
                 return default
@@ -99,7 +102,7 @@ class CreateModel:
         material_names = set()
         found_materials = {}
         material_names.add("Air")
-        for section_name, section_data in self.params.items():
+        for section_name, section_data in self.params_dict.items():
             if isinstance(section_data, dict):
                 for key, value in section_data.items():
                     if "material" in key.lower() and isinstance(value, str):
@@ -129,281 +132,14 @@ class CreateModel:
             femm.mi_addcircprop(circuit_name, 0, 1)
 
     def create_magnets(self):
-        """Create magnets of the tubular linear motor from specified parameters."""
-        total_height = (self.magnet.number - 1) * self.magnet.pitch
-        y_start = -total_height / 2
-        for i in range(self.magnet.number):
-            y_center = y_start + i * self.magnet.pitch
-            half_length = self.magnet.length / 2
-            r = self.magnet.od / 2
-            top_left = (0, y_center + half_length)
-            bottom_left = (0, y_center - half_length)
-            bottom_right = (r, y_center - half_length)
-            top_right = (r, y_center + half_length)
-            femm.mi_addnode(*top_left)
-            femm.mi_addnode(*bottom_left)
-            femm.mi_addnode(*bottom_right)
-            femm.mi_addnode(*top_right)
-            femm.mi_addsegment(*top_left, *bottom_left)
-            femm.mi_addsegment(*bottom_left, *bottom_right)
-            femm.mi_addsegment(*bottom_right, *top_right)
-            femm.mi_addsegment(*top_right, *top_left)
-            x_center = r / 2
-            magnetization_angle = -90 if i % 2 == 0 else 90
-            femm.mi_addblocklabel(x_center, y_center)
-            femm.mi_selectlabel(x_center, y_center)
-            femm.mi_setblockprop(
-                self.magnet.material,
-                1,
-                0,
-                "",
-                magnetization_angle,
-                0,
-                0,
-            )
-            femm.mi_clearselected()
-
-            # If there should be a spacer between magnets, add it
-            if self.magnet.length < self.magnet.pitch and i < self.magnet.number - 1:
-                spacer_length = self.magnet.pitch - self.magnet.length
-                spacer_center_y = y_center + self.magnet.pitch / 2
-                half_spacer = spacer_length / 2
-                spacer_top_left = (0, spacer_center_y + half_spacer)
-                spacer_bottom_left = (0, spacer_center_y - half_spacer)
-                spacer_bottom_right = (r, spacer_center_y - half_spacer)
-                spacer_top_right = (r, spacer_center_y + half_spacer)
-                femm.mi_addnode(*spacer_top_left)
-                femm.mi_addnode(*spacer_bottom_left)
-                femm.mi_addnode(*spacer_bottom_right)
-                femm.mi_addnode(*spacer_top_right)
-                femm.mi_addsegment(*spacer_top_left, *spacer_bottom_left)
-                femm.mi_addsegment(*spacer_bottom_left, *spacer_bottom_right)
-                femm.mi_addsegment(*spacer_bottom_right, *spacer_top_right)
-                femm.mi_addsegment(*spacer_top_right, *spacer_top_left)
-                spacer_label_x = r / 2
-                spacer_label_y = spacer_center_y
-                femm.mi_addblocklabel(spacer_label_x, spacer_label_y)
-                femm.mi_selectlabel(spacer_label_x, spacer_label_y)
-                femm.mi_setblockprop(
-                    self.magnet.spacer_material,
-                    1,
-                    0,
-                    "",
-                    0,
-                    0,
-                    0,
-                )
-                femm.mi_clearselected()
-
-        # If there should be a tube around the magnets, add it
-        if self.magnet.tube_od > self.magnet.od:
-            tube_half_height = self.magnet.number * self.magnet.pitch / 2
-            tube_r = self.magnet.tube_od / 2
-            tube_top_left = (r, tube_half_height)
-            tube_bottom_left = (r, -tube_half_height)
-            tube_bottom_right = (tube_r, -tube_half_height)
-            tube_top_right = (tube_r, tube_half_height)
-            femm.mi_addnode(*tube_top_left)
-            femm.mi_addnode(*tube_bottom_left)
-            femm.mi_addnode(*tube_bottom_right)
-            femm.mi_addnode(*tube_top_right)
-            femm.mi_addsegment(*tube_top_left, *tube_bottom_left)
-            femm.mi_addsegment(*tube_bottom_left, *tube_bottom_right)
-            femm.mi_addsegment(*tube_bottom_right, *tube_top_right)
-            femm.mi_addsegment(*tube_top_right, *tube_top_left)
-            tube_label_x = tube_r - (tube_r - r) / 2
-            tube_label_y = 0
-            femm.mi_addblocklabel(tube_label_x, tube_label_y)
-            femm.mi_selectlabel(tube_label_x, tube_label_y)
-            femm.mi_setblockprop(
-                self.magnet.tube_material,
-                1,
-                0,
-                "",
-                0,
-                0,
-                0,
-            )
-            femm.mi_clearselected()
+        """Create magnets using external builder."""
+        create_magnets(femm, self.magnet_params)
 
 
     def create_coils(self):
-        """Create coils of the tubular linear motor from specified parameters."""
-        coil_labels = [("A", 1), ("B", 2), ("C", 3)]
-        total_height = (self.coil.number - 1) * self.coil.pitch
-        y_start = -total_height / 2  + self.coil.vertical_offset
-        for i in range(self.coil.number):
-            coil_label, group = coil_labels[(self.coil.number - 1 - i) % 3]
-            y_center = y_start + i * self.coil.pitch
-            half_length = self.coil.length / 2
-            r = self.coil.od / 2
-            x_start = self.coil.id / 2
-            top_left = (x_start, y_center + half_length)
-            bottom_left = (x_start, y_center - half_length)
-            bottom_right = (r, y_center - half_length)
-            top_right = (r, y_center + half_length)
-            femm.mi_addnode(*top_left)
-            femm.mi_addnode(*bottom_left)
-            femm.mi_addnode(*bottom_right)
-            femm.mi_addnode(*top_right)
-            segments = [
-                (top_left, bottom_left),
-                (bottom_left, bottom_right),
-                (bottom_right, top_right),
-                (top_right, top_left),
-            ]
-            for p1, p2 in segments:
-                femm.mi_addsegment(*p1, *p2)
-                x_seg = (p1[0] + p2[0]) / 2
-                y_seg = (p1[1] + p2[1]) / 2
-                femm.mi_selectsegment(x_seg, y_seg)
-                femm.mi_setsegmentprop("<None>", 0, 1, 0, group)
-                femm.mi_clearselected()
-            x_center = x_start + (r - x_start) / 2
-            group_index = i // 3
-            if group_index % 2 == 0:
-                nb_turns = (
-                    self.coil.nb_turn if coil_label == "B" else -self.coil.nb_turn
-                )
-            else:
-                nb_turns = (
-                    -self.coil.nb_turn if coil_label == "B" else self.coil.nb_turn
-                )
-            femm.mi_addblocklabel(x_center, y_center)
-            femm.mi_selectlabel(x_center, y_center)
-            femm.mi_setblockprop(
-                self.coil.material,
-                1,
-                0,
-                f"Coil{coil_label}",
-                0,
-                group,
-                nb_turns,
-            )
-            femm.mi_clearselected()
-
-            # If there should be a spool around coils, add it
-            if (
-                self.coil.spool_flange_width > 0
-                and self.coil.spool_id <= self.coil.id
-                and self.coil.spool_od >= self.coil.od
-            ):
-                spool_flange_length = self.coil.spool_flange_width
-                half_spool_length = half_length + spool_flange_length
-                spool_center_y = y_center
-                spool_start_x = self.coil.spool_id / 2
-                spool_end_x = self.coil.spool_od / 2
-                spool_top_left = (spool_start_x, spool_center_y + half_spool_length)
-                spool_bottom_left = (spool_start_x, spool_center_y - half_spool_length)
-                spool_bottom_right = (spool_end_x, spool_center_y - half_spool_length)
-                spool_bottom_right_upper_flange = (spool_end_x, spool_center_y - half_spool_length + spool_flange_length)
-                spool_top_right = (spool_end_x, spool_center_y + half_spool_length)
-                spool_top_right_inner_flange = (spool_end_x, spool_center_y + half_spool_length - spool_flange_length)
-                femm.mi_addnode(*spool_top_left)
-                femm.mi_addnode(*spool_bottom_left)
-                femm.mi_addnode(*spool_bottom_right)
-                femm.mi_addnode(*spool_bottom_right_upper_flange)
-                femm.mi_addnode(*spool_top_right)
-                femm.mi_addnode(*spool_top_right_inner_flange)
-                spool_segments = [
-                    (spool_top_left, spool_bottom_left),
-                    (spool_bottom_left, spool_bottom_right),
-                    (spool_bottom_right, spool_bottom_right_upper_flange),
-                    (spool_bottom_right_upper_flange, bottom_right),
-                    (top_right, spool_top_right_inner_flange),
-                    (spool_top_right_inner_flange, spool_top_right),
-                    (spool_top_right, spool_top_left),
-                ]
-                for p1, p2 in spool_segments:
-                    femm.mi_addsegment(*p1, *p2)
-                    x_seg = (p1[0] + p2[0]) / 2
-                    y_seg = (p1[1] + p2[1]) / 2
-                    femm.mi_selectsegment(x_seg, y_seg)
-                    femm.mi_setsegmentprop("<None>", 0, 1, 0, 4)
-                    femm.mi_clearselected()
-                spool_label_x = spool_start_x + (spool_end_x - spool_start_x) / 2
-                spool_label_y = spool_center_y + half_spool_length - spool_flange_length / 2
-                femm.mi_addblocklabel(spool_label_x, spool_label_y)
-                femm.mi_selectlabel(spool_label_x, spool_label_y)
-                femm.mi_setblockprop(
-                    self.coil.spool_material,
-                    1,
-                    0,
-                    "",
-                    0,
-                    4,
-                    0,
-                )
-                femm.mi_clearselected()
-
-            # If there should be a spacer between coils, add it
-            if (self.coil.length + 2 * self.coil.spool_flange_width) < self.coil.pitch and i < self.coil.number - 1:
-                spacer_length = self.coil.pitch - (self.coil.length + 2 * self.coil.spool_flange_width)
-                spacer_center_y = y_center + self.coil.pitch / 2
-                half_spacer = spacer_length / 2
-                spacer_start_x = min(x_start, self.coil.spool_id / 2)
-                spacer_end_x = max(r, self.coil.spool_od / 2)
-                spacer_top_left = (spacer_start_x, spacer_center_y + half_spacer)
-                spacer_bottom_left = (spacer_start_x, spacer_center_y - half_spacer)
-                spacer_bottom_right = (spacer_end_x, spacer_center_y - half_spacer)
-                spacer_top_right = (spacer_end_x, spacer_center_y + half_spacer)
-                femm.mi_addnode(*spacer_top_left)
-                femm.mi_addnode(*spacer_bottom_left)
-                femm.mi_addnode(*spacer_bottom_right)
-                femm.mi_addnode(*spacer_top_right)
-                spacer_segments = [
-                    (spacer_top_left, spacer_bottom_left),
-                    (spacer_bottom_left, spacer_bottom_right),
-                    (spacer_bottom_right, spacer_top_right),
-                    (spacer_top_right, spacer_top_left),
-                ]
-                for p1, p2 in spacer_segments:
-                    femm.mi_addsegment(*p1, *p2)
-                    x_seg = (p1[0] + p2[0]) / 2
-                    y_seg = (p1[1] + p2[1]) / 2
-                    femm.mi_selectsegment(x_seg, y_seg)
-                    femm.mi_setsegmentprop("<None>", 0, 1, 0, 4)
-                    femm.mi_clearselected()
-                spacer_label_x = spacer_start_x + (spacer_end_x - spacer_start_x) / 2
-                spacer_label_y = spacer_center_y
-                femm.mi_addblocklabel(spacer_label_x, spacer_label_y)
-                femm.mi_selectlabel(spacer_label_x, spacer_label_y)
-                femm.mi_setblockprop(
-                    self.coil.spacer_material,
-                    1,
-                    0,
-                    "",
-                    0,
-                    4,
-                    0,
-                )
-                femm.mi_clearselected()
+        """Create coils using external builder."""
+        create_coils(femm, self.coil_params)
 
     def create_auto_boundary(self):
-        """Automatically create an open boundary region around the model."""
-        r_max = max(self.coil.od / 2, self.magnet.od / 2)
-        h_stack = (self.magnet.number - 1) * self.magnet.pitch + self.magnet.length
-        h_max = h_stack / 2 + self.coil.length
-        model_radius = (r_max**2 + h_max**2) ** 0.5
-        air_radius = model_radius * 1.5
-        femm.mi_makeABC(
-            7,
-            air_radius,
-            0,
-            0,
-            0,
-        )
-        air_x = air_radius / 2
-        air_y = air_radius * 2 / 3
-        femm.mi_addblocklabel(air_x, air_y)
-        femm.mi_selectlabel(air_x, air_y)
-        femm.mi_setblockprop(
-            "Air",
-            1,
-            0,
-            "",
-            0,
-            0,
-            0,
-        )
-        femm.mi_clearselected()
+        """Create boundary using external builder."""
+        create_auto_boundary(femm, self.coil_params, self.magnet_params)

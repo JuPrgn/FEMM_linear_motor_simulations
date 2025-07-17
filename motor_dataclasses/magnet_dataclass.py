@@ -1,10 +1,12 @@
+"""
+Data class for magnet parameters used in FEMM simulations.
+"""
 from dataclasses import dataclass
 from typing import Optional
 
-
 @dataclass
 class Magnet:
-    """Magnets parameters"""
+    """Magnet parameters for FEMM simulation."""
     od: Optional[float] = None
     length: Optional[float] = None
     pitch: Optional[float] = None

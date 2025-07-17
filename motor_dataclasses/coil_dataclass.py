@@ -1,10 +1,12 @@
+"""
+Data class for coil parameters used in FEMM simulations.
+"""
 from dataclasses import dataclass
 from typing import Optional
 
-
 @dataclass
 class Coil:
-    """Coils parameters"""
+    """Coil parameters for FEMM simulation."""
     id: Optional[float] = None
     od: Optional[float] = None
     length: Optional[float] = None
