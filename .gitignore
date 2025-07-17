@@ -75,6 +75,7 @@ out/
 *.pdf
 *.fem
 !SimuFile.fem
+!image/*
 
 # OS files
 .DS_Store
