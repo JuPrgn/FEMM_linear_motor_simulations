@@ -170,5 +170,5 @@ def create_coils(femm, coil):
             create_spool(femm, coil, y_center, half_length, r)
 
         # Add spacer if needed
-        if (coil.length + 2 * coil.spool_flange_width) < coil.pitch and i < coil.number - 1:
-            create_coil_spacer(femm, coil, y_center, x_start, r)
+        # if (coil.length + 2 * coil.spool_flange_width) < coil.pitch and i < coil.number - 1:
+        #     create_coil_spacer(femm, coil, y_center, x_start, r)
