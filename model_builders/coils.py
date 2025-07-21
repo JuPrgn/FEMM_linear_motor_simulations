@@ -100,7 +100,10 @@ def create_coil_spacer(femm, coil, y_center, x_start, r):
     spacer_length = coil.pitch - (coil.length + 2 * coil.spool_flange_width)
     spacer_center_y = y_center + coil.pitch / 2
     half_spacer = spacer_length / 2
-    spacer_start_x = min(x_start, coil.spool_id / 2)
+    if coil.spool_id != 0:
+        spacer_start_x = min(x_start, coil.spool_id / 2)
+    else:
+        spacer_start_x = x_start
     spacer_end_x = max(r, coil.spool_od / 2)
     spacer_top_left = (spacer_start_x, spacer_center_y + half_spacer)
     spacer_bottom_left = (spacer_start_x, spacer_center_y - half_spacer)
@@ -170,5 +173,5 @@ def create_coils(femm, coil):
             create_spool(femm, coil, y_center, half_length, r)
 
         # Add spacer if needed
-        # if (coil.length + 2 * coil.spool_flange_width) < coil.pitch and i < coil.number - 1:
-        #     create_coil_spacer(femm, coil, y_center, x_start, r)
+        if (coil.length + 2 * coil.spool_flange_width) < coil.pitch and i < coil.number - 1:
+            create_coil_spacer(femm, coil, y_center, x_start, r)

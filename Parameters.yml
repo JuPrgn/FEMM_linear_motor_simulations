@@ -19,9 +19,9 @@ Coil:
   Number: 6
   Current_peak: 3
   Vertical_offset: 0
-  Spool_ID: 13.5
-  Spool_OD: 25
-  Spool_flange_width: 0.2
+  Spool_ID: 0
+  Spool_OD: 0
+  Spool_flange_width: 0
   Spool_material: Air
   Tube_ID: 0
   Tube_OD: 0
